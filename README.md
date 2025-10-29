@@ -10,7 +10,7 @@ app_port: 7860
 secrets:
   - DATABASE_URL
   - SECRET_KEY
-  - REDIS_HOST
+  - REDIS_HO
   - REDIS_PORT
 env:
   ENVIRONMENT: production
