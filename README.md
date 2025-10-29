@@ -1,5 +1,24 @@
 # 💖 SoulSync Backend
 
+---
+title: SoulSync Backend API
+emoji: 💖🧠
+colorFrom: yellow
+colorTo: pink
+sdk: docker
+app_port: 7860
+secrets:
+  - DATABASE_URL
+  - SECRET_KEY
+  - REDIS_HOST
+  - REDIS_PORT
+env:
+  ENVIRONMENT: production
+  DEBUG: false
+  API_V1_STR: /api/v1
+  PYTHON_VERSION: 3.12
+---
+
 <div align="center">
 
 **Connect Through Emotions, Not Just Words**
@@ -11,7 +30,7 @@
 [Quick Start](#-quick-start) •
 [API Endpoints](#-api-endpoints-reference) •
 [Authentication](#-authentication-flow) •
-[ML Training](#-ml-model-training) •
+[ML Model](#-ml-model--hugging-face-integration) •
 [Deployment](#-deployment)
 
 </div>
@@ -73,7 +92,7 @@ SoulSync is an emotion-based matching platform that connects people through **em
 | **Model Hosting** | Hugging Face Hub |
 | **Real-time** | WebSockets |
 | **Auth** | JWT, Bcrypt |
-| **Deployment** | Gunicorn, Uvicorn, Render |
+| **Deployment** | Docker, Gunicorn, Uvicorn, Hugging Face Spaces, Render |
 
 ---
 
@@ -520,9 +539,9 @@ Authorization: Bearer {access_token}
 ```
 
 **Frontend Notes:**
-- If both users connect, a conversation is created
 - Use `conversation_id` to navigate to chat
 - If one-sided, status is "pending"
+- When both users connect, conversation is automatically created
 
 ---
 
@@ -775,13 +794,18 @@ Authorization: Bearer {access_token}
 ### For Frontend Implementation
 
 **1. User Registration:**
-```
-POST /auth/register → Store tokens → Redirect to profile setup
+```javascript
+POST /api/v1/auth/register 
+→ Store tokens 
+→ Redirect to profile setup
 ```
 
 **2. User Login:**
-```
-POST /auth/login → Store tokens → Fetch user profile → Redirect to dashboard
+```javascript
+POST /api/v1/auth/login 
+→ Store tokens 
+→ Fetch user profile 
+→ Redirect to dashboard
 ```
 
 **3. Protected Requests:**
@@ -808,6 +832,27 @@ if (response.status === 401) {
 localStorage.removeItem('access_token');
 localStorage.removeItem('refresh_token');
 // Redirect to login
+```
+
+**6. WebSocket Connection:**
+```javascript
+// Connect to WebSocket
+const ws = new WebSocket(`wss://your-api-url/ws?token=${accessToken}`);
+
+// Listen for messages
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  if (data.type === 'message') {
+    // Handle incoming message
+  }
+};
+
+// Send message
+ws.send(JSON.stringify({
+  type: 'message',
+  conversation_id: 'conversation-uuid',
+  content: 'Hello!'
+}));
 ```
 
 ---
@@ -877,6 +922,9 @@ soulsync_backend/
 │
 ├── 📂 tests/                # Test suite
 ├── .env.example             # Environment template
+├── .gitignore               # Git ignore file
+├── alembic.ini              # Alembic configuration
+├── Dockerfile               # Docker deployment for Hugging Face Spaces
 ├── requirements.txt         # Dependencies
 └── README.md                # This file
 ```
@@ -885,7 +933,89 @@ soulsync_backend/
 
 ## ☁️ Deployment
 
-### Deploy to Render
+### Option 1: Deploy to Hugging Face Spaces
+
+**1. Create a New Space**
+
+- Go to [huggingface.co](https://huggingface.co) and click "New" → "Space"
+- Give it a name (e.g., `soulsync-api`)
+- Select **"Docker"** as the Space SDK
+- Choose "Public" (or "Private" if available)
+- Click "Create Space"
+
+**2. Link Your GitHub Repository**
+
+- In your new Space, go to the "Settings" tab
+- Find the "Sync from GitHub" section
+- Connect your `ButlerVal/soulsync-backend` repository
+- Select the `main` branch
+
+**3. Configure Secrets (Critical)**
+
+In your Space's "Settings" tab, scroll to "Space secrets" and add:
+
+**Required Secrets:**
+
+| Secret Name | Description | Example |
+|------------|-------------|---------|
+| `DATABASE_URL` | **CRITICAL:** PostgreSQL connection string from external provider (Render, Railway, etc.) | `postgresql+asyncpg://user:pass@host:5432/db` |
+| `SECRET_KEY` | Strong secret key for JWT signing | Generate: `python -c "import secrets; print(secrets.token_hex(32))"` |
+
+**Optional Secrets (if using Redis):**
+
+| Secret Name | Value |
+|------------|-------|
+| `REDIS_HOST` | Redis host address |
+| `REDIS_PORT` | `6379` |
+
+> **Important:** Hugging Face Spaces does NOT provide a database. You MUST create a PostgreSQL database on an external service (Render, Railway, Supabase, etc.) and use its **external/public connection string**.
+
+**4. Configure Environment Variables**
+
+The environment variables are already defined in the README.md frontmatter:
+
+```yaml
+env:
+  ENVIRONMENT: production
+  DEBUG: false
+  API_V1_STR: /api/v1
+  PYTHON_VERSION: 3.12
+```
+
+These will be automatically loaded by Hugging Face Spaces.
+
+**5. Run Database Migrations**
+
+> **CRITICAL:** Hugging Face Spaces does NOT automatically run migrations. You must run them manually against your remote database.
+
+From your local terminal (with virtual environment activated):
+
+```bash
+# Windows
+set DATABASE_URL=postgresql+asyncpg://<your-external-db-connection-string>
+alembic upgrade head
+
+# macOS/Linux
+export DATABASE_URL=postgresql+asyncpg://<your-external-db-connection-string>
+alembic upgrade head
+```
+
+**6. Deploy!** 🚀
+
+- Push to your GitHub `main` branch
+- Hugging Face Spaces will automatically:
+  - Detect the `Dockerfile`
+  - Build the Docker image
+  - Download the ML model from Hugging Face Hub
+  - Start the FastAPI server on port 7860
+
+Your API will be available at: `https://huggingface.co/spaces/YOUR_USERNAME/soulsync-api`
+
+> **First Deployment Note:** Initial deployment takes 5-10 minutes due to Docker build and model download.
+
+---
+
+### Option 2: Deploy to Render
 
 **1. Create PostgreSQL Database**
 - Dashboard → New → PostgreSQL
