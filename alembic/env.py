@@ -1,4 +1,5 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -73,8 +74,18 @@ async def run_async_migrations() -> None:
 
     """
 
+    environment ---
+    # Get the database URL from the environment variable
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE_URL environment variable is not set")
+
+    # Create configuration dictionary for the engine, overriding the ini file's URL
+    connectable_config = config.get_section(config.config_ini_section, {})
+    connectable_config["sqlalchemy.url"] = db_url # Use the URL from the environment
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        connectable_config, # Use the modified config dict
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
