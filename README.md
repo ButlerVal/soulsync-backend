@@ -39,10 +39,10 @@ SoulSync is an emotion-based matching platform that connects people through **em
 - Profile management API
 
 ### 🧠 Emotion AI
-- DistilBERT fine-tuned on GoEmotions dataset
+- DistilBERT fine-tuned on GoEmotions dataset (hosted on Hugging Face Hub: `Valisces/soulsync-emotion-model`)
 - 8-dimensional emotion vectors: Joy, Sadness, Anxiety, Calm, Anger, Excitement, Empathy, Confidence
 - Text analysis API
-- GPU training support via Modal
+- Automatic model download from Hugging Face Hub on startup
 
 ### 💝 Smart Matching
 - Cosine similarity algorithm with context-aware weighting
@@ -70,10 +70,10 @@ SoulSync is an emotion-based matching platform that connects people through **em
 | **Backend** | FastAPI, Python 3.12 |
 | **Database** | PostgreSQL, SQLAlchemy (async) |
 | **ML/AI** | 🤗 Transformers, PyTorch, DistilBERT |
+| **Model Hosting** | Hugging Face Hub |
 | **Real-time** | WebSockets |
 | **Auth** | JWT, Bcrypt |
 | **Deployment** | Gunicorn, Uvicorn, Render |
-| **Cloud Training** | Modal (GPU) |
 
 ---
 
@@ -90,7 +90,7 @@ SoulSync is an emotion-based matching platform that connects people through **em
 **1. Clone the Repository**
 
 ```bash
-git clone https://github.com/ButlerVal/soulsync_backend.git
+git clone https://github.com/ButlerVal/soulsync-backend.git
 cd soulsync_backend
 ```
 
@@ -158,6 +158,8 @@ uvicorn app.main:app --reload
 ```
 
 🎉 **Success!** Your API is now running at `http://127.0.0.1:8000`
+
+> **Note on First Run:** The server will download the ML model (`Valisces/soulsync-emotion-model`) from Hugging Face Hub the first time it starts. This might take a few minutes depending on your internet connection. Subsequent startups will use the cached model.
 
 **8. Access Interactive API Docs**
 
@@ -810,42 +812,47 @@ localStorage.removeItem('refresh_token');
 
 ---
 
-## 🧠 ML Model Training
+## 🧠 ML Model & Hugging Face Integration
 
-### Cloud GPU Training (Recommended)
+### Model Information
 
-**1. Install Modal**
+**Model ID:** `Valisces/soulsync-emotion-model` on [Hugging Face Hub](https://huggingface.co/Valisces/soulsync-emotion-model)
 
-```bash
-pip install modal
+**Architecture:** Fine-tuned DistilBERT for emotion classification
+
+**Training Dataset:** GoEmotions (Google's emotion dataset)
+
+**Output:** 8-dimensional emotion vectors
+
+### How It Works
+
+1. **Automatic Download:** The backend automatically downloads and caches the model from Hugging Face Hub on first startup
+2. **Caching:** Subsequent server restarts use the cached model (stored in `~/.cache/huggingface/`)
+3. **Inference:** The model analyzes text samples to generate emotion profiles
+4. **No Manual Setup Required:** Just run the server and the model will be downloaded automatically
+
+### Frontend Notes
+
+- First API startup may take 2-5 minutes to download the model (~250MB)
+- Show a loading state during user's first emotion analysis
+- Model responses are typically fast (<1 second) after initial load
+- The model is shared across all users (no per-user download)
+
+### For Developers
+
+The model is loaded in `app/ml/emotion_classifier.py`:
+
+```python
+from transformers import pipeline
+
+classifier = pipeline(
+    "text-classification",
+    model="Valisces/soulsync-emotion-model",
+    return_all_scores=True
+)
 ```
 
-**2. Set Up Modal Account**
-
-```bash
-modal setup
-```
-
-**3. Train on Cloud GPU**
-
-```bash
-modal run app/ml/modal_trainer.py
-```
-
-This runs training on an **A10G GPU** in the cloud!
-
-**4. Download Trained Model**
-
-```bash
-mkdir app/ml/models/emotion_model_hf
-modal volume get soulsync-model-storage emotion_model_hf app/ml/models/emotion_model_hf
-```
-
-### Local Training (Not Recommended - Very Slow)
-
-```bash
-python -m app.ml.emotion_classifier
-```
+No training code is included in this repository - this is inference only. The model was previously trained using Modal GPU infrastructure.
 
 ---
 
@@ -861,15 +868,14 @@ soulsync_backend/
 │   │   └── 📂 endpoints/    # Feature routers
 │   ├── 📂 core/             # Core configuration
 │   ├── 📂 db/               # Database setup
-│   ├── 📂 ml/               # Machine learning
-│   │   ├── emotion_classifier.py
-│   │   ├── modal_trainer.py
-│   │   └── 📂 models/       # Trained models
+│   ├── 📂 ml/               # Machine learning inference
+│   │   └── emotion_classifier.py  # Loads model from Hugging Face Hub
 │   ├── 📂 models/           # Database models
 │   ├── 📂 schemas/          # Pydantic schemas
 │   ├── 📂 services/         # Business logic
 │   └── main.py              # App entry point
 │
+├── 📂 tests/                # Test suite
 ├── .env.example             # Environment template
 ├── requirements.txt         # Dependencies
 └── README.md                # This file
@@ -905,14 +911,17 @@ DEBUG=False
 ## 🗺️ Roadmap
 
 ### Coming Soon
-- Email verification on registration
-- Profile photo upload (S3/R2)
-- Delete account endpoint
-- Advanced matching filters
-- AI-generated conversation starters
-- Push notifications
-- Image/voice messages
-- Comprehensive test suite
+- 📧 Real email verification on registration (SendGrid/AWS SES)
+- 📸 Profile photo upload (S3/R2)
+- 🗑️ Delete account endpoint
+- 🔍 Advanced matching filters & pagination
+- 💬 AI-generated conversation starters (LLM integration)
+- 🔔 Push notifications for new matches & messages
+- 🖼️ Rich message types (images, voice, GIFs)
+- ✅ Comprehensive unit & integration tests
+- 📊 Production logging (centralized logging service)
+- 👨‍💼 Admin panel features
+- 💳 Subscription/premium features
 
 ---
 
