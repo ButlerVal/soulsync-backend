@@ -1,0 +1,29 @@
+# --- FastAPI Server ---
+fastapi==0.111.1
+uvicorn[standard]==0.30.3
+python-multipart==0.0.9
+
+# --- Database (PostgreSQL) ---
+sqlalchemy[asyncio]==2.0.31
+asyncpg==0.29.0  # High-performance async driver for PostgreSQL
+alembic==1.13.2  # For database migrations
+
+# --- Data Validation & Settings ---
+pydantic[email]==2.8.2
+pydantic-settings==2.3.4
+
+# --- Authentication & Security ---
+passlib[bcrypt]==1.7.4  # For password hashing 
+bcrypt==4.1.3 # Pin a recent, known-good version
+python-jose[cryptography]==3.3.0 # For JWT tokens
+
+# --- ML & Emotion Analysis ---
+transformers==4.42.4
+numpy==1.26.4
+huggingface_hub==0.36.0 # Or the version you installed
+accelerate>=0.21.0
+
+# --- Caching ---
+redis==5.0.7 # For caching match results
+
+gunicorn==22.0.0 # Production web server

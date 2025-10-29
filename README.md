@@ -1,0 +1,942 @@
+# 💖 SoulSync Backend
+
+<div align="center">
+
+**Connect Through Emotions, Not Just Words**
+
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg?style=flat-square)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-00C7B7.svg?style=flat-square)](https://fastapi.tiangolo.com)
+[![Built by The Hive](https://img.shields.io/badge/Built%20by-The%20Hive-yellow.svg?style=flat-square)](https://github.com/ButlerVal)
+
+[Quick Start](#-quick-start) •
+[API Endpoints](#-api-endpoints-reference) •
+[Authentication](#-authentication-flow) •
+[ML Training](#-ml-model-training) •
+[Deployment](#-deployment)
+
+</div>
+
+---
+
+## 🌟 What is SoulSync?
+
+SoulSync is an emotion-based matching platform that connects people through **emotional compatibility**. Using NLP and machine learning, we analyze emotional expressions to find meaningful connections for friendships, dating, co-founding, and support.
+
+---
+
+## ✨ Features
+
+### 🔐 Authentication & Security
+- Email/Password registration & login
+- JWT tokens (access & refresh)
+- Password reset flow
+- Bcrypt password hashing
+- Block & report users
+
+### 👤 User Profiles
+- Customizable profiles (bio, name, DOB)
+- Privacy controls
+- Profile management API
+
+### 🧠 Emotion AI
+- DistilBERT fine-tuned on GoEmotions dataset
+- 8-dimensional emotion vectors: Joy, Sadness, Anxiety, Calm, Anger, Excitement, Empathy, Confidence
+- Text analysis API
+- GPU training support via Modal
+
+### 💝 Smart Matching
+- Cosine similarity algorithm with context-aware weighting
+- Daily match generation
+- Connect/Pass functionality
+- Match history tracking
+
+### 💬 Real-Time Messaging
+- WebSocket connections
+- Persistent chat history
+- Conversation management
+- Real-time message delivery
+
+### 🛡️ Safety & Moderation
+- User blocking system
+- Report functionality
+- Block list management
+
+---
+
+## 🛠️ Tech Stack
+
+| Category | Technologies |
+|----------|-------------|
+| **Backend** | FastAPI, Python 3.12 |
+| **Database** | PostgreSQL, SQLAlchemy (async) |
+| **ML/AI** | 🤗 Transformers, PyTorch, DistilBERT |
+| **Real-time** | WebSockets |
+| **Auth** | JWT, Bcrypt |
+| **Deployment** | Gunicorn, Uvicorn, Render |
+| **Cloud Training** | Modal (GPU) |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.12
+- PostgreSQL 13+
+- Git
+
+### Installation
+
+**1. Clone the Repository**
+
+```bash
+git clone https://github.com/ButlerVal/soulsync_backend.git
+cd soulsync_backend
+```
+
+**2. Set Up Virtual Environment**
+
+```bash
+# Windows
+py -3.12 -m venv venv
+venv\Scripts\activate
+
+# macOS/Linux
+python3.12 -m venv venv
+source venv/bin/activate
+```
+
+**3. Install Dependencies**
+
+```bash
+pip install -r requirements.txt
+```
+
+**4. Configure PostgreSQL**
+
+```bash
+# Connect to PostgreSQL
+psql -U your_username
+
+# Create database
+CREATE DATABASE soulsync_db;
+```
+
+**5. Set Up Environment Variables**
+
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Generate a secret key
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Edit `.env` with your configuration:
+
+```env
+APP_NAME=SoulSync
+ENVIRONMENT=development
+DEBUG=True
+API_V1_STR=/api/v1
+DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/soulsync_db
+SECRET_KEY=your_generated_secret_key_here
+ACCESS_TOKEN_EXPIRE_MINUTES=15
+REFRESH_TOKEN_EXPIRE_DAYS=7
+```
+
+**6. Run Database Migrations**
+
+```bash
+alembic upgrade head
+```
+
+**7. Start the Development Server**
+
+```bash
+uvicorn app.main:app --reload
+```
+
+🎉 **Success!** Your API is now running at `http://127.0.0.1:8000`
+
+**8. Access Interactive API Docs**
+
+- **Swagger UI**: http://127.0.0.1:8000/docs
+- **ReDoc**: http://127.0.0.1:8000/redoc
+
+---
+
+## 📡 API Endpoints Reference
+
+Base URL: `http://127.0.0.1:8000/api/v1`
+
+### 🔐 Authentication Endpoints
+
+#### Register New User
+```http
+POST /auth/register
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!",
+  "name": "John Doe",
+  "date_of_birth": "1995-06-15"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "uuid-string",
+  "email": "user@example.com",
+  "name": "John Doe",
+  "date_of_birth": "1995-06-15",
+  "created_at": "2025-10-29T10:30:00Z"
+}
+```
+
+**Frontend Notes:**
+- Password must be at least 8 characters
+- Email must be unique
+- Date format: `YYYY-MM-DD`
+
+---
+
+#### Login
+```http
+POST /auth/login
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+**Response (200):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+**Frontend Notes:**
+- Store both tokens securely (localStorage/sessionStorage)
+- Access token expires in 15 minutes
+- Refresh token expires in 7 days
+- Use access token in Authorization header: `Bearer {access_token}`
+
+---
+
+#### Refresh Access Token
+```http
+POST /auth/refresh
+```
+
+**Request Body:**
+```json
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response (200):**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+**Frontend Notes:**
+- Call this endpoint when access token expires
+- Returns a new access token
+- Keep the same refresh token
+
+---
+
+#### Forgot Password
+```http
+POST /auth/forgot-password
+```
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password reset email sent"
+}
+```
+
+**Frontend Notes:**
+- Currently returns mock response
+- In production, will send actual email with reset token
+
+---
+
+#### Reset Password
+```http
+POST /auth/reset-password
+```
+
+**Request Body:**
+```json
+{
+  "token": "reset-token-from-email",
+  "new_password": "NewSecurePass123!"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Password reset successful"
+}
+```
+
+---
+
+### 👤 User Profile Endpoints
+
+#### Get Current User Profile
+```http
+GET /users/me
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "id": "uuid-string",
+  "email": "user@example.com",
+  "name": "John Doe",
+  "bio": "Software developer passionate about AI",
+  "date_of_birth": "1995-06-15",
+  "created_at": "2025-10-29T10:30:00Z",
+  "updated_at": "2025-10-29T10:30:00Z"
+}
+```
+
+**Frontend Notes:**
+- Requires authentication
+- Use to display user's own profile
+
+---
+
+#### Update Current User Profile
+```http
+PUT /users/me
+Authorization: Bearer {access_token}
+```
+
+**Request Body:**
+```json
+{
+  "name": "John Smith",
+  "bio": "Tech enthusiast and coffee lover",
+  "date_of_birth": "1995-06-15"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "uuid-string",
+  "email": "user@example.com",
+  "name": "John Smith",
+  "bio": "Tech enthusiast and coffee lover",
+  "date_of_birth": "1995-06-15",
+  "updated_at": "2025-10-29T11:45:00Z"
+}
+```
+
+**Frontend Notes:**
+- All fields are optional
+- Only send fields that need updating
+
+---
+
+### 🧠 Emotion Profile Endpoints
+
+#### Analyze Emotional Profile
+```http
+POST /profiles/analyze
+Authorization: Bearer {access_token}
+```
+
+**Request Body:**
+```json
+{
+  "text_samples": [
+    "I'm really excited about this new opportunity! It's going to be amazing.",
+    "Sometimes I feel overwhelmed by all the responsibilities.",
+    "I love helping others and being there for my friends."
+  ]
+}
+```
+
+**Response (200):**
+```json
+{
+  "user_id": "uuid-string",
+  "emotion_vector": {
+    "joy": 0.72,
+    "sadness": 0.15,
+    "anxiety": 0.28,
+    "calm": 0.45,
+    "anger": 0.05,
+    "excitement": 0.81,
+    "empathy": 0.68,
+    "confidence": 0.62
+  },
+  "analyzed_at": "2025-10-29T12:00:00Z"
+}
+```
+
+**Frontend Notes:**
+- Requires 2-5 text samples (each 50-500 characters)
+- Use diverse samples (journal entries, social media posts, etc.)
+- Emotion values range from 0.0 to 1.0
+- This profile is used for matching
+- Can be re-analyzed to update profile
+
+---
+
+#### Get User's Emotion Profile
+```http
+GET /profiles/me
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "user_id": "uuid-string",
+  "emotion_vector": {
+    "joy": 0.72,
+    "sadness": 0.15,
+    "anxiety": 0.28,
+    "calm": 0.45,
+    "anger": 0.05,
+    "excitement": 0.81,
+    "empathy": 0.68,
+    "confidence": 0.62
+  },
+  "analyzed_at": "2025-10-29T12:00:00Z"
+}
+```
+
+**Frontend Notes:**
+- Returns null if user hasn't analyzed their emotions yet
+- Prompt user to analyze if profile doesn't exist
+
+---
+
+### 💝 Matching Endpoints
+
+#### Get Daily Matches
+```http
+GET /matches/daily?use_case=dating
+Authorization: Bearer {access_token}
+```
+
+**Query Parameters:**
+- `use_case` (optional): `friends`, `dating`, `cofounder`, `support` (default: `dating`)
+
+**Response (200):**
+```json
+{
+  "matches": [
+    {
+      "id": "match-uuid-1",
+      "user": {
+        "id": "user-uuid",
+        "name": "Jane Smith",
+        "bio": "Adventure seeker and book lover",
+        "age": 28
+      },
+      "compatibility_score": 0.87,
+      "emotional_compatibility": {
+        "joy": 0.89,
+        "empathy": 0.91,
+        "calm": 0.78
+      },
+      "conversation_starters": [
+        "What's your favorite adventure you've been on?",
+        "What book changed your perspective on life?"
+      ],
+      "matched_at": "2025-10-29T08:00:00Z"
+    }
+  ],
+  "total": 5,
+  "generated_at": "2025-10-29T08:00:00Z"
+}
+```
+
+**Frontend Notes:**
+- New matches generated daily at 8:00 AM
+- Compatibility score ranges from 0.0 to 1.0 (higher is better)
+- Use conversation starters as ice-breakers
+- User must have emotion profile to get matches
+
+---
+
+#### Connect with Match
+```http
+POST /matches/{match_id}/connect
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "status": "connected",
+  "conversation_id": "conversation-uuid",
+  "message": "You're now connected! Start chatting."
+}
+```
+
+**Response if not mutual (200):**
+```json
+{
+  "status": "pending",
+  "message": "Connection request sent. Waiting for response."
+}
+```
+
+**Frontend Notes:**
+- If both users connect, a conversation is created
+- Use `conversation_id` to navigate to chat
+- If one-sided, status is "pending"
+
+---
+
+#### Pass on Match
+```http
+POST /matches/{match_id}/pass
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "status": "passed",
+  "message": "Match passed"
+}
+```
+
+**Frontend Notes:**
+- Removes match from daily matches
+- User won't see this match again
+- Action is permanent
+
+---
+
+### 💬 Messaging Endpoints
+
+#### Get Conversations List
+```http
+GET /conversations
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "conversations": [
+    {
+      "id": "conversation-uuid-1",
+      "participant": {
+        "id": "user-uuid",
+        "name": "Jane Smith"
+      },
+      "last_message": {
+        "content": "That sounds great!",
+        "sent_at": "2025-10-29T14:30:00Z",
+        "is_read": true
+      },
+      "unread_count": 0,
+      "updated_at": "2025-10-29T14:30:00Z"
+    }
+  ],
+  "total": 3
+}
+```
+
+**Frontend Notes:**
+- Sorted by most recent activity
+- Use `unread_count` for notification badges
+- Display last message as preview
+
+---
+
+#### Get Conversation Messages
+```http
+GET /conversations/{conversation_id}/messages?limit=50&offset=0
+Authorization: Bearer {access_token}
+```
+
+**Query Parameters:**
+- `limit` (optional): Number of messages to return (default: 50)
+- `offset` (optional): Pagination offset (default: 0)
+
+**Response (200):**
+```json
+{
+  "messages": [
+    {
+      "id": "message-uuid-1",
+      "conversation_id": "conversation-uuid",
+      "sender_id": "user-uuid",
+      "content": "Hey! How are you doing?",
+      "sent_at": "2025-10-29T14:25:00Z",
+      "is_read": true
+    },
+    {
+      "id": "message-uuid-2",
+      "conversation_id": "conversation-uuid",
+      "sender_id": "current-user-uuid",
+      "content": "I'm good, thanks! How about you?",
+      "sent_at": "2025-10-29T14:26:00Z",
+      "is_read": true
+    }
+  ],
+  "total": 24,
+  "limit": 50,
+  "offset": 0
+}
+```
+
+**Frontend Notes:**
+- Messages ordered by `sent_at` (oldest first)
+- Use pagination for loading older messages
+- Compare `sender_id` with current user ID to align messages
+
+---
+
+#### WebSocket Connection (Real-time Messaging)
+```
+WS /ws?token={access_token}
+```
+
+**Connection:**
+```javascript
+const ws = new WebSocket('ws://127.0.0.1:8000/ws?token=' + accessToken);
+```
+
+**Send Message:**
+```json
+{
+  "type": "message",
+  "conversation_id": "conversation-uuid",
+  "content": "Hello there!"
+}
+```
+
+**Receive Message:**
+```json
+{
+  "type": "message",
+  "message": {
+    "id": "message-uuid",
+    "conversation_id": "conversation-uuid",
+    "sender_id": "user-uuid",
+    "content": "Hello there!",
+    "sent_at": "2025-10-29T14:30:00Z"
+  }
+}
+```
+
+**Frontend Notes:**
+- Pass access token in query parameter
+- Connection stays open for real-time updates
+- Listen for incoming messages
+- Handle reconnection on disconnect
+- Send heartbeat/ping to keep connection alive
+
+---
+
+### 🛡️ Safety & Moderation Endpoints
+
+#### Block User
+```http
+POST /safety/users/{user_id}/block
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "status": "blocked",
+  "message": "User blocked successfully"
+}
+```
+
+**Frontend Notes:**
+- Blocked user can't message you
+- Removes all matches with this user
+- Removes from match suggestions
+
+---
+
+#### Unblock User
+```http
+DELETE /safety/users/{user_id}/unblock
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "status": "unblocked",
+  "message": "User unblocked successfully"
+}
+```
+
+---
+
+#### Get Blocked Users List
+```http
+GET /safety/blocked-list
+Authorization: Bearer {access_token}
+```
+
+**Response (200):**
+```json
+{
+  "blocked_users": [
+    {
+      "id": "user-uuid",
+      "name": "John Doe",
+      "blocked_at": "2025-10-28T10:00:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+#### Report User
+```http
+POST /safety/reports
+Authorization: Bearer {access_token}
+```
+
+**Request Body:**
+```json
+{
+  "reported_user_id": "user-uuid",
+  "reason": "harassment",
+  "description": "User sent inappropriate messages"
+}
+```
+
+**Reason Options:**
+- `harassment`
+- `spam`
+- `inappropriate_content`
+- `fake_profile`
+- `other`
+
+**Response (201):**
+```json
+{
+  "id": "report-uuid",
+  "status": "submitted",
+  "message": "Report submitted successfully"
+}
+```
+
+**Frontend Notes:**
+- Include clear report form in UI
+- Allow users to provide context
+- Confirm submission to user
+
+---
+
+## 🔒 Authentication Flow
+
+### For Frontend Implementation
+
+**1. User Registration:**
+```
+POST /auth/register → Store tokens → Redirect to profile setup
+```
+
+**2. User Login:**
+```
+POST /auth/login → Store tokens → Fetch user profile → Redirect to dashboard
+```
+
+**3. Protected Requests:**
+```javascript
+// Add to all authenticated requests
+headers: {
+  'Authorization': `Bearer ${accessToken}`,
+  'Content-Type': 'application/json'
+}
+```
+
+**4. Token Refresh (when 401 received):**
+```javascript
+// Pseudo-code
+if (response.status === 401) {
+  const newToken = await refreshAccessToken(refreshToken);
+  // Retry original request with new token
+}
+```
+
+**5. Logout:**
+```javascript
+// Clear tokens from storage
+localStorage.removeItem('access_token');
+localStorage.removeItem('refresh_token');
+// Redirect to login
+```
+
+---
+
+## 🧠 ML Model Training
+
+### Cloud GPU Training (Recommended)
+
+**1. Install Modal**
+
+```bash
+pip install modal
+```
+
+**2. Set Up Modal Account**
+
+```bash
+modal setup
+```
+
+**3. Train on Cloud GPU**
+
+```bash
+modal run app/ml/modal_trainer.py
+```
+
+This runs training on an **A10G GPU** in the cloud!
+
+**4. Download Trained Model**
+
+```bash
+mkdir app/ml/models/emotion_model_hf
+modal volume get soulsync-model-storage emotion_model_hf app/ml/models/emotion_model_hf
+```
+
+### Local Training (Not Recommended - Very Slow)
+
+```bash
+python -m app.ml.emotion_classifier
+```
+
+---
+
+## 📁 Project Structure
+
+```
+soulsync_backend/
+│
+├── 📂 alembic/              # Database migrations
+├── 📂 app/                  # Main application
+│   ├── 📂 api/              # API routes
+│   │   ├── deps.py          # Auth dependencies
+│   │   └── 📂 endpoints/    # Feature routers
+│   ├── 📂 core/             # Core configuration
+│   ├── 📂 db/               # Database setup
+│   ├── 📂 ml/               # Machine learning
+│   │   ├── emotion_classifier.py
+│   │   ├── modal_trainer.py
+│   │   └── 📂 models/       # Trained models
+│   ├── 📂 models/           # Database models
+│   ├── 📂 schemas/          # Pydantic schemas
+│   ├── 📂 services/         # Business logic
+│   └── main.py              # App entry point
+│
+├── .env.example             # Environment template
+├── requirements.txt         # Dependencies
+└── README.md                # This file
+```
+
+---
+
+## ☁️ Deployment
+
+### Deploy to Render
+
+**1. Create PostgreSQL Database**
+- Dashboard → New → PostgreSQL
+- Copy **Internal Connection String**
+
+**2. Create Web Service**
+- Connect GitHub repository
+- Environment: Python 3
+- Build Command: `pip install -r requirements.txt && alembic upgrade head`
+
+**3. Environment Variables**
+
+```
+PYTHON_VERSION=3.12
+DATABASE_URL=<postgres_url>
+SECRET_KEY=<generate_strong_key>
+ENVIRONMENT=production
+DEBUG=False
+```
+
+---
+
+## 🗺️ Roadmap
+
+### Coming Soon
+- Email verification on registration
+- Profile photo upload (S3/R2)
+- Delete account endpoint
+- Advanced matching filters
+- AI-generated conversation starters
+- Push notifications
+- Image/voice messages
+- Comprehensive test suite
+
+---
+
+## 👥 Team
+
+### 🐝 The Hive
+
+Built with 💖 by passionate developers
+
+[![GitHub](https://img.shields.io/badge/GitHub-ButlerVal-181717?style=for-the-badge&logo=github)](https://github.com/ButlerVal)
+
+---
+
+## 🆘 Support
+
+- 📖 [API Documentation](http://localhost:8000/docs)
+- 🐛 [Report Issues](https://github.com/ButlerVal/soulsync_backend/issues)
+
+---
+
+<div align="center">
+
+**Made with ❤️ by The Hive 🐝**
+
+*Connecting hearts through technology*
+
+</div>
