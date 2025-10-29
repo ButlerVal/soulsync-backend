@@ -1,0 +1,24 @@
+name: Sync to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main  # Triggers this action every time you push to the 'main' branch
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for a full push
+          lfs: false     # We are not using Git LFS anymore
+
+      - name: Push to Hugging Face Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }} # Uses the secret we created
+        run: |
+          # Replace <Your-Space-Name> with the name of the Space you created on HF
+          # Your HF username is 'Valisces' based on your model ID
+          git push https://Valisces:$HF_TOKEN@huggingface.co/spaces/Valisces/soulsync_backend main --force
