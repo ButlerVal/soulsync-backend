@@ -1,5 +1,5 @@
 import asyncio
-import os
+import os # Import os to read environment variables
 from logging.config import fileConfig
 
 from sqlalchemy import pool
@@ -21,11 +21,14 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-# Import our Base and the User model so Alembic sees it
+
+# Import all models and the Base class
 from app.db.base import Base
-from app.models.user import User  # This is crucial!
+from app.models.user import User
 from app.models.emotional_profile import EmotionalProfile
-from app.models.match import Match # Import the new Match model
+from app.models.match import Match
+from app.models.conversation import Conversation
+from app.models.message import Message
 from app.models.user_block import UserBlock
 from app.models.report import Report
 
@@ -42,13 +45,14 @@ def run_migrations_offline() -> None:
 
     This configures the context with just a URL
     and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
+    here as well. By skipping the Engine creation
     we don't even need a DBAPI to be available.
 
     Calls to context.execute() here emit the given string to the
     script output.
 
     """
+    # Still read from config for offline mode
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -62,8 +66,8 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
+    """Helper function to run migrations within a transaction."""
     context.configure(connection=connection, target_metadata=target_metadata)
-
     with context.begin_transaction():
         context.run_migrations()
 
@@ -71,38 +75,48 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """In this scenario we need to create an Engine
     and associate a connection with the context.
-
     """
 
-    environment ---
-    # Get the database URL from the environment variable
+    # Get the database URL from the OS environment variable
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
-        raise ValueError("DATABASE_URL environment variable is not set")
+        raise ValueError("DATABASE_URL environment variable is not set or empty")
 
-    # Create configuration dictionary for the engine, overriding the ini file's URL
-    connectable_config = config.get_section(config.config_ini_section, {})
-    connectable_config["sqlalchemy.url"] = db_url # Use the URL from the environment
+    # Create engine configuration using the environment variable
+    # We pass the URL directly instead of reading from alembic.ini section
+    connectable_config = {
+        "sqlalchemy.url": db_url # Directly use the environment variable
+    }
 
+    # Create the async engine from the modified config
     connectable = async_engine_from_config(
-        connectable_config, # Use the modified config dict
+        connectable_config,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
+    # Connect and run migrations
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
 
+    # Dispose of the engine
     await connectable.dispose()
 
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    try:
+        asyncio.run(run_async_migrations())
+    except ValueError as ve:
+        print(f"Migration Error: {ve}")
+        # Optionally exit with an error code if DATABASE_URL is missing
+        import sys
+        sys.exit(1)
 
-    asyncio.run(run_async_migrations())
 
-
+# Determine mode and run migrations
 if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
+
