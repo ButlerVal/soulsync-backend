@@ -82,10 +82,18 @@ async def run_async_migrations() -> None:
     if not db_url:
         raise ValueError("DATABASE_URL environment variable is not set or empty")
 
-    # Create engine configuration using the environment variable
-    # We pass the URL directly instead of reading from alembic.ini section
+    # --- FIX: Ensure the URL uses the asyncpg driver ---
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif not db_url.startswith("postgresql+asyncpg://"):
+        # Handle potential other invalid formats if necessary, or raise error
+        raise ValueError(f"Unexpected DATABASE_URL format: {db_url}")
+    # --- END FIX ---
+
+
+    # Create engine configuration using the potentially modified URL
     connectable_config = {
-        "sqlalchemy.url": db_url # Directly use the environment variable
+        "sqlalchemy.url": db_url # Use the corrected URL
     }
 
     # Create the async engine from the modified config
@@ -101,6 +109,7 @@ async def run_async_migrations() -> None:
 
     # Dispose of the engine
     await connectable.dispose()
+
 
 
 def run_migrations_online() -> None:
